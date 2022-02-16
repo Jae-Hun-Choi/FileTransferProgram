@@ -25,6 +25,9 @@ int main(int argc, char* argv[])
 		ErrorHandler("connect() Error\n");
 
 	sock->sock_recv("./recvfile.jpg");
+	sock->client_sock_close();
+
+	delete(sock);
 }
 
 void ErrorHandler(const char* message)

@@ -14,22 +14,21 @@
 class Socket 
 {
 	protected:
-		int id;
+		int fd;
 	public:
 		Socket()
 		{
-			this->id = socket(AF_INET, SOCK_STREAM,0);
+			this->fd = socket(AF_INET, SOCK_STREAM,0);
 		}
 		~Socket()
 		{
-			close(this->id);
 		}
 };
 
 class ServerSocket : Socket
 {
 	private:
-		int client_sock;
+		int client_sock_fd;
 	public:
 		ServerSocket()
 		{
@@ -40,7 +39,7 @@ class ServerSocket : Socket
 			addr.sin_family = AF_INET;
 			addr.sin_addr.s_addr = htonl(INADDR_ANY);
 			addr.sin_port = htons(atoi(port));
-			int flag = bind(this->id, (struct sockaddr*) &(addr), sizeof(addr));
+			int flag = bind(this->fd, (struct sockaddr*) &(addr), sizeof(addr));
 			if(flag == -1)
 				return false;
 			return true;
@@ -48,7 +47,7 @@ class ServerSocket : Socket
 		
 		bool sock_listen(int conn_num)
 		{
-			int flag = listen(this->id, conn_num);
+			int flag = listen(this->fd, conn_num);
 			if(flag == -1)
 				return false;
 			return true;
@@ -58,8 +57,8 @@ class ServerSocket : Socket
 		{
 			struct sockaddr client_addr;
 			socklen_t client_addr_size = sizeof(client_addr);
-			this->client_sock  = accept(this->id, (struct sockaddr*)&client_addr, (socklen_t*) &client_addr_size);
-			if(this->client_sock == -1)
+			this->client_sock_fd  = accept(this->fd, (struct sockaddr*)&client_addr, (socklen_t*) &client_addr_size);
+			if(this->client_sock_fd == -1)
 				return false;
 			return true;
 		}
@@ -68,7 +67,7 @@ class ServerSocket : Socket
 		{
 			std::FILE* fp = std::fopen(filepath,"rb");
 			std::vector<char> buf(BUF_SIZE);
-			
+			usleep(1000*1000*5);
 			int len = 1;
 			while(len > 0)
 			{
@@ -77,23 +76,23 @@ class ServerSocket : Socket
 				{	
 					break;
 				}
-					send(this->client_sock,&buf[0],len,0);
+					send(this->client_sock_fd,&buf[0],len,0);
 			}
 			fclose(fp);
-		}
-		bool sock_sendfile(const char *filepath)
+		}	
+
+		void serv_sock_close()
 		{
-			while(true)
-			{
-				if(!(this->sock_accept()))
-					return false;
-				this->sock_send(filepath);
-				close(this->client_sock);
-			}
+			close(this->fd);
+		}
+		void accept_sock_close()
+		{
+			close(this->client_sock_fd);
 		}
 		~ServerSocket()
 		{
-			close(this->client_sock);
+			this->serv_sock_close();
+			this->accept_sock_close();
 		}
 
 };
@@ -111,7 +110,7 @@ class ClientSocket : Socket
 			addr.sin_family = AF_INET;
 			addr.sin_addr.s_addr = inet_addr(ip);
 			addr.sin_port = htons(atoi(port));
-			int flag = connect(id, (struct sockaddr*)&addr,sizeof(addr));
+			int flag = connect(this->fd, (struct sockaddr*)&addr,sizeof(addr));
 			if(flag == -1) 
 				return false;
 			return true;
@@ -124,7 +123,7 @@ class ClientSocket : Socket
 			int len = 1;
 			while(len > 0)
 			{
-				len = recv(id, &buf[0], BUF_SIZE, 0);
+				len = recv(this->fd, &buf[0], BUF_SIZE, 0);
 				
 				if(len == 0)
 					break;
@@ -132,12 +131,13 @@ class ClientSocket : Socket
 			}
 			fclose(fp);
 		}
-		void sock_recvfile(const char* filepath)
+		void client_sock_close()
 		{
-			this->sock_recv(filepath);
+			close(this->fd);
 		}
 		~ClientSocket()
 		{
+			this->client_sock_close();
 		}
 };
 

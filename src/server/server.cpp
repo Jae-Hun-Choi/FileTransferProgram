@@ -6,12 +6,14 @@
 #include <thread>
 #include <vector>
 #include <cstring>
+#include <csignal>
 
 #include "Socket.h"
 
 
 // Function Declaration
 void ErrorHandler(const char* message);
+
 
 // Code
 int main(int argc, char *argv[])
@@ -23,7 +25,6 @@ int main(int argc, char *argv[])
 	}
 	//std::unique_ptr<ServerSocket*> sock(new ServerSocket(argv[1],5));
 	ServerSocket* sock = new ServerSocket();
-	
 	//bind()
 	if(!(sock->sock_bind(argv[1])))
 		ErrorHandler("bind() error\n");
@@ -37,7 +38,13 @@ int main(int argc, char *argv[])
 	for(uint8_t i = 0; i < 5; i++)
 	{
 		threads.push_back(std::thread([](ServerSocket* sock) {
-			sock->sock_sendfile("./img/sendfile.jpg");
+			while(true)
+			{
+				if(!(sock->sock_accept()))
+					return false;
+				sock->sock_send("./img/sendfile.jpg");
+				sock->accept_sock_close();
+			}
 		}, sock));
 	}
 
@@ -46,6 +53,11 @@ int main(int argc, char *argv[])
 		if(thread.joinable() == true)
 			thread.join();
 	}
+
+
+	sock->serv_sock_close();
+
+	delete(sock);
 	return 0;
 }
 
@@ -55,3 +67,4 @@ void ErrorHandler(const char* message)
 	std::fputc('\n',stderr);
 	exit(1);
 }
+
